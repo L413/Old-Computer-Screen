@@ -1,0 +1,225 @@
+<html>
+  <head>
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=VT323&display=swap"
+    />
+  </head>
+  <style>
+    :root {
+      --font-color: rgb(159, 248, 25);
+      --secondary-color: rgb(101, 165, 6);
+      --shadow-color: rgb(192, 231, 133);
+    }
+
+    html,
+    body {
+      margin: 0;
+      margin-top: -35px;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      white-space: pre;
+      overflow: hidden;
+      background-color: black;
+    }
+
+    #screen {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgb(1, 46, 1);
+    }
+
+    #scan,
+    #bezel {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    #scan {
+      opacity: 60%;
+    }
+
+    #content {
+      font-family: VT323;
+      padding-left: 125px;
+      padding-top: 75px;
+      color: var(--font-color);
+      font-size: 25px;
+      line-height: 3px;
+      text-shadow: 1px 1px 2px var(--shadow-color), 0 0 1em var(--shadow-color),
+        0 0 0.2em var(--shadow-color);
+    }
+
+    #content a {
+      color: var(--secondary-color);
+      display: block;
+    }
+
+    .noselect {
+      -webkit-touch-callout: none; /* iOS Safari */
+      -webkit-user-select: none; /* Safari */
+      -khtml-user-select: none; /* Konqueror HTML */
+      -moz-user-select: none; /* Old versions of Firefox */
+      -ms-user-select: none; /* Internet Explorer/Edge */
+      user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+    }
+
+    br {
+      display: block;
+      height: 0;
+      line-height: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    #canvas {
+      position: absolute;
+      display: block;
+      line-height: normal;
+      top: 10%;
+      left: 40%;
+      margin: 0;
+    }
+  </style>
+  <body>
+    <div id="screen">
+      <img src="scanlines.png" id="scan" class="noselect" />
+      <img src="bezel.png" id="bezel" class="noselect" />
+      <div id="content">
+        <pre id="canvas"></pre>
+        <h1>L-Walters</h1>
+        <p>Game Developer</p>
+        <p>Web Developer</p>
+        <p>Robotics Software Engineer</p>
+        <br />
+        <h3>(c) Lincoln Walters 2024</h3>
+        <p>
+          <a href="https://github.com/L413" target="_blank"
+            >https://github.com/L413</a
+          >
+        </p>
+        <p>
+          <a href="https://shelfconsole.glitch.me" target="_blank"
+            >https://shelfconsole.glitch.me</a
+          >
+        </p>
+        <br />
+        <br />
+        <p>I'm a web developer.</p>
+        <p>Learning full stack.</p>
+      </div>
+    </div>
+
+    <script>
+      const width = 75,
+        height = 25;
+      let A = 0,
+        B = 0,
+        C = 0;
+      let cubeWidth = 20;
+      const distanceFromCam = 100;
+      const K1 = 40;
+      const incrementSpeed = 0.6;
+      const backgroundASCIICode = " ";
+      let zBuffer = new Array(width * height).fill(0);
+      let buffer = new Array(width * height).fill(backgroundASCIICode);
+      let horizontalOffset = 0;
+      const canvas = document.getElementById("canvas");
+
+      function calculateX(i, j, k) {
+        return (
+          j * Math.sin(A) * Math.sin(B) * Math.cos(C) -
+          k * Math.cos(A) * Math.sin(B) * Math.cos(C) +
+          j * Math.cos(A) * Math.sin(C) +
+          k * Math.sin(A) * Math.sin(C) +
+          i * Math.cos(B) * Math.cos(C)
+        );
+      }
+
+      function calculateY(i, j, k) {
+        return (
+          j * Math.cos(A) * Math.cos(C) +
+          k * Math.sin(A) * Math.cos(C) -
+          j * Math.sin(A) * Math.sin(B) * Math.sin(C) +
+          k * Math.cos(A) * Math.sin(B) * Math.sin(C) -
+          i * Math.cos(B) * Math.sin(C)
+        );
+      }
+
+      function calculateZ(i, j, k) {
+        return (
+          k * Math.cos(A) * Math.cos(B) -
+          j * Math.sin(A) * Math.cos(B) +
+          i * Math.sin(B)
+        );
+      }
+
+      function calculateForSurface(cubeX, cubeY, cubeZ, ch) {
+        let x = calculateX(cubeX, cubeY, cubeZ);
+        let y = calculateY(cubeX, cubeY, cubeZ);
+        let z = calculateZ(cubeX, cubeY, cubeZ) + distanceFromCam;
+        let ooz = 1 / z;
+        let xp = Math.floor(width / 2 + horizontalOffset + K1 * ooz * x * 2);
+        let yp = Math.floor(height / 2 + K1 * ooz * y);
+        let idx = xp + yp * width;
+
+        if (idx >= 0 && idx < width * height) {
+          if (ooz > zBuffer[idx]) {
+            zBuffer[idx] = ooz;
+            buffer[idx] = ch;
+          }
+        }
+      }
+
+      function render() {
+        buffer.fill(backgroundASCIICode);
+        zBuffer.fill(0);
+
+        // Render first cube
+        cubeWidth = 15;
+        horizontalOffset = 0;
+        for (
+          let cubeX = -cubeWidth;
+          cubeX < cubeWidth;
+          cubeX += incrementSpeed
+        ) {
+          for (
+            let cubeY = -cubeWidth;
+            cubeY < cubeWidth;
+            cubeY += incrementSpeed
+          ) {
+            calculateForSurface(cubeX, cubeY, -cubeWidth, "@");
+            calculateForSurface(cubeWidth, cubeY, cubeX, "$");
+            calculateForSurface(-cubeWidth, cubeY, -cubeX, "~");
+            calculateForSurface(-cubeX, cubeY, cubeWidth, "#");
+            calculateForSurface(cubeX, -cubeWidth, -cubeY, ";");
+            calculateForSurface(cubeX, cubeWidth, cubeY, "+");
+          }
+        }
+
+        // Display the buffer
+        let output = "";
+        for (let i = 0; i < buffer.length; i++) {
+          output += (i % width === 0 ? "\n" : "") + buffer[i];
+        }
+        canvas.textContent = output;
+
+        // Rotate the cube
+        A += 0.05;
+        B += 0.05;
+        C += 0.01;
+      }
+
+      setInterval(render, 16);
+    </script>
+  </body>
+</html>
